@@ -1,5 +1,7 @@
-altair
-numpy
+yfinance
 pandas
-pydeck
+matplotlib
+mplfinance
+ta
 streamlit
+numpy

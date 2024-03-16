@@ -1,51 +1,58 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+import pandas as pd
+import yfinance as yf
+import numpy as np
+import matplotlib.pyplot as plt
+import ta
 import streamlit as st
-from streamlit.logger import get_logger
 
-LOGGER = get_logger(__name__)
+# Title of your app
+st.title('BTC Analysis with RSI and EMA')
 
+# User input for Len and Len_EMA
+len = st.number_input('Input Len:', min_value=1,
+                      value=14)  # Default value set to 14
+len_ema = st.number_input('Input Len_EMA:', min_value=1,
+                          value=10)  # Default value set to 10
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+# Download BTC data
+btc_df = yf.download("BTC-USD", start="2018-01-01")
 
-    st.write("# Welcome to Streamlit! 👋")
+# Calculate RSI
+btc_df['rsi'] = ta.momentum.RSIIndicator(btc_df['Close'], window=len).rsi()
 
-    st.sidebar.success("Select a demo above.")
+# Calculate EMA of RSI
+btc_df['rsi_ema'] = ta.trend.EMAIndicator(
+    btc_df['rsi'], window=len_ema).ema_indicator()
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+# Conditions for Long and Short
+btc_df['rsi_long'] = btc_df['rsi_ema'] > 50
+btc_df['rsi_short'] = btc_df['rsi_ema'] < 50
 
+# Plotting
+fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(14, 10), sharex=True)
 
-if __name__ == "__main__":
-    run()
+# Plotting the closing price of BTC-USD
+axes[0].plot(btc_df.index, btc_df['Close'],
+             label='BTCUSD Close Price', color='black')
+axes[0].set_yscale('log')
+axes[0].set_title('BTCUSD Close Price and RSI EMA Indicator')
+axes[0].legend()
+
+# Highlighting the areas where conditions are met
+axes[0].fill_between(btc_df.index, btc_df['Close'], where=btc_df['rsi_long'],
+                     color='green', alpha=0.3, label='Long Condition Met')
+axes[0].fill_between(btc_df.index, btc_df['Close'], where=btc_df['rsi_short'],
+                     color='red', alpha=0.3, label='Short Condition Met')
+
+# Plotting RSI and its EMA on the second subplot
+axes[1].plot(btc_df.index, btc_df['rsi'], label='RSI', color='#8F00FF')
+axes[1].plot(btc_df.index, btc_df['rsi_ema'],
+             label='EMA of RSI', color='orange', linestyle='-')
+axes[1].hlines(50, btc_df.index[0], btc_df.index[-1],
+               colors='grey', linestyles='--')
+
+axes[1].set_title('RSI and EMA of RSI')
+axes[1].legend()
+
+# Showing the plot in Streamlit
+st.pyplot(fig)
